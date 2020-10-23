@@ -1,0 +1,62 @@
+import runtime;
+import string;
+import ds/array;
+
+sum(a: int, b: int) -> int {
+    a + b;
+}
+
+fib_a(n: int) -> [int] {
+    if (n <= 0) {
+        [];
+    } else if (n == 1) {
+        [0];
+    } else if (n == 2) {
+        [0, 1];
+    } else {
+        a = fib_a(n - 1);
+        b = [a[n - 3] + a[n - 2]];
+        concat(a, b);
+    }
+}
+
+fibTailHelper(n: int, res: [int]) -> [int] {
+    if (n == 2) {
+        res;
+    } else {
+        fibTailHelper(n - 1, concat(res, [res[length(res) - 1] + res[length(res) - 2]]));
+    }
+}
+
+fib_b(n : int) -> [int] {
+    if (n <= 0) {
+        [];
+    } else if (n == 1) {
+        [0];
+    } else {
+        fibTailHelper(n, [0, 1]);
+    }
+}
+
+fib_c(n: int) -> [int] {
+    if (n <= 0) {
+        [];
+    } else if (n == 1) {
+        [0];
+    } else if (n == 2) {
+        [0, 1];
+    } else {
+        a = ref fib_c(n - 1);
+        refArrayPush(a, ^a[n - 3] + ^a[n - 2]);
+        ^a;
+    }
+}
+
+main() {
+    arr1 = fib_a(20);
+    arr2 = fib_b(20);
+    arr3 = fib_c(20);
+    println(arr1);
+    println(arr2);
+    println(arr3);
+}

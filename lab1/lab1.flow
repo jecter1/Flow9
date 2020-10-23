@@ -1,0 +1,12 @@
+import runtime;
+import string;
+import ds/array;
+
+i2sArr(arr: [int]) -> [string] {
+    map(arr, i2s);
+}
+
+main() {
+    arr = i2sArr([1, 2, 3]);
+    iter(arr, println);
+}
