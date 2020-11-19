@@ -14,7 +14,7 @@ s2expr(str : string) -> Expr {
 }
 
 expr2s(expr : Expr) -> string {
-    switch(expr) {
+    switch (expr) {
         IConst(value): i2s(value);
         EMul(left, right): concatStrings(["(", expr2s(left), "*", expr2s(right), ")"]);
         EAdd(left, right): concatStrings(["(", expr2s(left), "+", expr2s(right), ")"]);

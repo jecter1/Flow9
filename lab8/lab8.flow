@@ -1,0 +1,69 @@
+import string;
+import lingo/pegcode/driver;
+
+Expr ::= IConst, EMul, EAdd, ESub, Variable;
+IConst : (value : int);
+Variable : (name : string);
+EMul : (left : Expr, right : Expr);
+EAdd : (left : Expr, right : Expr);
+ESub : (left : Expr, right : Expr);
+
+parser = compilePegGrammar("#include lab8.lingo");
+
+s2expr(str : string) -> Expr {
+    parsic(parser, str, defaultPegActions);
+}
+
+expr2s(expr : Expr) -> string {
+    switch (expr) {
+        IConst(value): i2s(value);
+        Variable(name): name;
+        EMul(left, right): concatStrings(["(", expr2s(left), "*", expr2s(right), ")"]);
+        EAdd(left, right): concatStrings(["(", expr2s(left), "+", expr2s(right), ")"]);
+        ESub(left, right): concatStrings(["(", expr2s(left), "-", expr2s(right), ")"]);
+    }
+} 
+
+calc(expr : Expr, variables : Tree<string, int>) -> Maybe<int> {
+    switch (expr) {
+        IConst(value): Some(value);
+        Variable(name): lookupTree(variables, name);
+        EMul(left, right): 
+            switch (calc(left, variables)) {
+                Some(val1): {
+                    val2 = calc(right, variables);
+                    val2 ?? Some(val1 * val2) : None();
+                }
+                None() : None();
+            }
+        EAdd(left, right): 
+            switch (calc(left, variables)) {
+                Some(val1): {
+                    val2 = calc(right, variables);
+                    val2 ?? Some(val1 + val2) : None();
+                }
+                None() : None();
+            }
+        ESub(left, right):  
+            switch (calc(left, variables)) {
+                Some(val1): {
+                    val2 = calc(right, variables);
+                    val2 ?? Some(val1 - val2) : None();
+                }
+                None() : None();
+            }
+    }
+}
+
+main() {
+    variables = setTree(makeTree(), "mY_v4r14bl3", 2);
+
+    tree = s2expr("( (mY_v4r14bl3 \n +    17)  *  \t  ( 0 - 21) \t\t\t\n\t )");
+    println(tree);
+
+    strTree = expr2s(tree);
+    println(strTree);
+
+    result = calc(tree, variables);
+    println(result);
+}
