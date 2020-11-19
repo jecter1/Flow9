@@ -1,0 +1,6 @@
+exp = int | mul | add | sub;
+ws = (' ' | '\t' | '\n')*;
+int = ('0' - '9')+$str {IConst(s2i($str))};
+mul = ws '(' ws exp:left ws '*' ws exp:right ws ')' ws {EMul(:left, :right)};
+add = ws '(' ws exp:left ws '+' ws exp:right ws ')' ws {EAdd(:left, :right)};
+sub = ws '(' ws exp:left ws '-' ws exp:right ws ')' ws {ESub(:left, :right)};

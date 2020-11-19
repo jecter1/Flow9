@@ -2,11 +2,11 @@ import runtime;
 import string;
 import ds/array;
 
-sum(a: int, b: int) -> int {
+sum(a : int, b : int) -> int {
     a + b;
 }
 
-intArrSum(arr: [int]) -> int {
+intArrSum(arr : [int]) -> int {
     fold(arr, 0, sum);
 }
 

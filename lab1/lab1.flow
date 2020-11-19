@@ -2,7 +2,7 @@ import runtime;
 import string;
 import ds/array;
 
-i2sArr(arr: [int]) -> [string] {
+i2sArr(arr : [int]) -> [string] {
     map(arr, i2s);
 }
 

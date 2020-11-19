@@ -1,0 +1,43 @@
+import string;
+import lingo/pegcode/driver;
+
+Expr ::= IConst, EMul, EAdd, ESub;
+IConst : (value : int);
+EMul : (left : Expr, right : Expr);
+EAdd : (left : Expr, right : Expr);
+ESub : (left : Expr, right : Expr);
+
+parser = compilePegGrammar("#include lab7.lingo");
+
+s2expr(str : string) -> Expr {
+    parsic(parser, str, defaultPegActions);
+}
+
+expr2s(expr : Expr) -> string {
+    switch(expr) {
+        IConst(value): i2s(value);
+        EMul(left, right): concatStrings(["(", expr2s(left), "*", expr2s(right), ")"]);
+        EAdd(left, right): concatStrings(["(", expr2s(left), "+", expr2s(right), ")"]);
+        ESub(left, right): concatStrings(["(", expr2s(left), "-", expr2s(right), ")"]);
+    }
+} 
+
+calc(expr : Expr) -> int {
+    switch(expr) {
+        IConst(value): value;
+        EMul(left, right): calc(left) * calc(right);
+        EAdd(left, right): calc(left) + calc(right);
+        ESub(left, right): calc(left) - calc(right);
+    }
+}
+
+main() {
+    tree = s2expr("( (2 \n +    17)  *  \t  ( 0 - 21) \t\t\t\n\t )");
+    println(tree);
+
+    strTree = expr2s(tree);
+    println(strTree);
+
+    result = calc(tree);
+    println(result);
+}

@@ -1,0 +1,19 @@
+import string;
+import lingo/pegcode/driver;
+
+Expr ::= IConst, EMul, EAdd, ESub;
+IConst : (value : int);
+EMul : (left : Expr, right : Expr);
+EAdd : (left : Expr, right : Expr);
+ESub : (left : Expr, right : Expr);
+
+parser = compilePegGrammar("#include lab5.lingo");
+
+s2expr(str : string) -> Expr {
+    parsic(parser, str, defaultPegActions);
+}
+
+main() {
+    tree = s2expr("( (2 \n +    17)  *  \t  ( 0 - 21) \t\t\t\n\t )");
+    println(tree);
+}

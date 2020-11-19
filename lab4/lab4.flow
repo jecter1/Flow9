@@ -1,0 +1,30 @@
+import runtime;
+import ds/tree;
+
+inds(arr : [int], sum : int) -> [Pair<int, int>] {
+    addElementToTree = \index, tree, arrElem -> {
+        indices = lookupTree(tree, arrElem);
+        indices ?? setTree(tree, arrElem, concat(indices, [index])) : setTree(tree, arrElem, [index]);
+    };
+    tree = foldi(arr, makeTree(), addElementToTree);
+
+    makePairs = \index, pairs, treeElem -> {
+	    remainIndices = lookupTree(tree, sum - treeElem);
+        makeIndsPair = \x -> Pair(index, x);
+        switch (remainIndices) {
+            Some(indices): {
+                isSecondGreater = \pair -> { pair.second > pair.first; };
+                newPairs = filter(map(indices, makeIndsPair), isSecondGreater);
+                concat(pairs, newPairs);
+            }
+            None(): pairs;
+        }
+	};
+    foldi(arr, [], makePairs);
+}
+
+main() {
+    arr = [9, 19, 5, -9, 5, 0];
+    pairs = inds(arr, 10);
+    iter(pairs, println);
+}
