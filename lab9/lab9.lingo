@@ -1,0 +1,14 @@
+exp = int | mul | add | sub | div | pow | var;
+ws = (' ' | '\t' | '\n')*;
+
+letter = ('a' - 'z') | ('A' - 'Z');
+permch = letter | '_' | ('0' - '9');
+var = (letter permch*)$str {Variable($str)};
+
+int = ('0' - '9')+$str {IConst(s2i($str))};
+
+mul = ws '(' ws exp:left ws '*' ws exp:right ws ')' ws {EMul(:left, :right)};
+add = ws '(' ws exp:left ws '+' ws exp:right ws ')' ws {EAdd(:left, :right)};
+sub = ws '(' ws exp:left ws '-' ws exp:right ws ')' ws {ESub(:left, :right)};
+div = ws '(' ws exp:left ws '/' ws exp:right ws ')' ws {EDiv(:left, :right)};
+pow = ws '(' ws exp:base ws '^' ws exp:expnt ws ')' ws {EPow(:base, :expnt)};

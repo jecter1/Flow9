@@ -1,0 +1,101 @@
+import string;
+import lingo/pegcode/driver;
+import lab9rat;
+
+Expr ::= IConst, RConst, Variable, EMul, EAdd, ESub, EDiv, EPow;
+IConst : (value : int);
+RConst : (value : rat);
+Variable : (name : string);
+EMul : (left : Expr, right : Expr);
+EAdd : (left : Expr, right : Expr);
+ESub : (left : Expr, right : Expr);
+EDiv : (left : Expr, right : Expr);
+EPow : (base : Expr, expnt : Expr);
+
+parser = compilePegGrammar("#include lab9.lingo");
+
+s2expr(str : string) -> Expr {
+    parsic(parser, str, defaultPegActions);
+}
+
+expr2s(expr : Expr) -> string {
+    switch (expr) {
+        IConst(value): i2s(value);
+        RConst(value): concatStrings([i2s(value.numer), "/", i2s(value.denom)]);
+        Variable(name): name;
+        EMul(left, right): concatStrings(["(", expr2s(left), "*", expr2s(right), ")"]);
+        EAdd(left, right): concatStrings(["(", expr2s(left), "+", expr2s(right), ")"]);
+        ESub(left, right): concatStrings(["(", expr2s(left), "-", expr2s(right), ")"]);
+        EDiv(left, right): concatStrings(["(", expr2s(left), "/", expr2s(right), ")"]);
+        EPow(base, expnt): concatStrings(["(", expr2s(base), "^", expr2s(expnt), ")"]);
+    }
+} 
+
+calc(expr : Expr, variables : Tree<string, rat>) -> Maybe<rat> {
+    switch (expr) {
+        IConst(value): Some(rat(value, 1));
+        RConst(value): Some(value);
+        Variable(name): lookupTree(variables, name);
+        EMul(left, right):
+            switch (calc(left, variables)) {
+                Some(val1): {
+                    val2 = calc(right, variables);
+                    val2 ?? Some(rMul(val1, val2)) : None();
+                }
+                None() : None();
+            }
+        EAdd(left, right):
+            switch (calc(left, variables)) {
+                Some(val1): {
+                    val2 = calc(right, variables);
+                    val2 ?? Some(rAdd(val1, val2)) : None();
+                }
+                None() : None();
+            }
+        ESub(left, right):
+            switch (calc(left, variables)) {
+                Some(val1): {
+                    val2 = calc(right, variables);
+                    val2 ?? Some(rSub(val1, val2)) : None();
+                }
+                None() : None();
+            }
+        EDiv(left, right):
+            switch (calc(left, variables)) {
+                Some(val1): {
+                    val2 = calc(right, variables);
+                    val2 ?? rDiv(val1, val2) : None();
+                }
+                None() : None();
+            }
+        EPow(left, right):
+            switch (calc(left, variables)) {
+                Some(val1): {
+                    switch (calc(right, variables)) {
+                        Some(val2): {
+                            if (val2.denom == 1) {
+                                rPow(val1, val2.numer);
+                            } else {
+                                None();
+                            }
+                        }
+                        None() : None();
+                    }
+                }
+                None() : None();
+            }
+    }
+}
+
+main() {
+    variables = setTree(makeTree(), "mY_v4r14bl3", rat(3, 1));
+
+    tree = s2expr("( (mY_v4r14bl3 \n / 2)  \t ^ 4 \t\t\t\n\t )");
+    println(tree);
+
+    strTree = expr2s(tree);
+    println(strTree);
+
+    result = calc(tree, variables);
+    println(result);
+}
