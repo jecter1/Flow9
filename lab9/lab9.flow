@@ -1,10 +1,8 @@
 import string;
 import lingo/pegcode/driver;
-import lab9rat;
+import const;
 
-Expr ::= IConst, RConst, Variable, EMul, EAdd, ESub, EDiv, EPow;
-IConst : (value : int);
-RConst : (value : rat);
+Expr ::= Const, Variable, EMul, EAdd, ESub, EDiv, EPow;
 Variable : (name : string);
 EMul : (left : Expr, right : Expr);
 EAdd : (left : Expr, right : Expr);
@@ -20,82 +18,52 @@ s2expr(str : string) -> Expr {
 
 expr2s(expr : Expr) -> string {
     switch (expr) {
-        IConst(value): i2s(value);
-        RConst(value): concatStrings([i2s(value.numer), "/", i2s(value.denom)]);
-        Variable(name): name;
-        EMul(left, right): concatStrings(["(", expr2s(left), "*", expr2s(right), ")"]);
-        EAdd(left, right): concatStrings(["(", expr2s(left), "+", expr2s(right), ")"]);
-        ESub(left, right): concatStrings(["(", expr2s(left), "-", expr2s(right), ")"]);
-        EDiv(left, right): concatStrings(["(", expr2s(left), "/", expr2s(right), ")"]);
-        EPow(base, expnt): concatStrings(["(", expr2s(base), "^", expr2s(expnt), ")"]);
-    }
-} 
-
-calc(expr : Expr, variables : Tree<string, rat>) -> Maybe<rat> {
-    switch (expr) {
-        IConst(value): Some(rat(value, 1));
-        RConst(value): Some(value);
-        Variable(name): lookupTree(variables, name);
-        EMul(left, right):
-            switch (calc(left, variables)) {
-                Some(val1): {
-                    val2 = calc(right, variables);
-                    val2 ?? Some(rMul(val1, val2)) : None();
-                }
-                None() : None();
-            }
-        EAdd(left, right):
-            switch (calc(left, variables)) {
-                Some(val1): {
-                    val2 = calc(right, variables);
-                    val2 ?? Some(rAdd(val1, val2)) : None();
-                }
-                None() : None();
-            }
-        ESub(left, right):
-            switch (calc(left, variables)) {
-                Some(val1): {
-                    val2 = calc(right, variables);
-                    val2 ?? Some(rSub(val1, val2)) : None();
-                }
-                None() : None();
-            }
-        EDiv(left, right):
-            switch (calc(left, variables)) {
-                Some(val1): {
-                    val2 = calc(right, variables);
-                    val2 ?? rDiv(val1, val2) : None();
-                }
-                None() : None();
-            }
-        EPow(left, right):
-            switch (calc(left, variables)) {
-                Some(val1): {
-                    switch (calc(right, variables)) {
-                        Some(val2): {
-                            if (val2.denom == 1) {
-                                rPow(val1, val2.numer);
-                            } else {
-                                None();
-                            }
-                        }
-                        None() : None();
-                    }
-                }
-                None() : None();
-            }
+        Const() : c2s(expr);
+        Variable(name) : name;
+        EMul(left, right) : concatStrings(["(", expr2s(left), "*", expr2s(right), ")"]);
+        EAdd(left, right) : concatStrings(["(", expr2s(left), "+", expr2s(right), ")"]);
+        ESub(left, right) : concatStrings(["(", expr2s(left), "-", expr2s(right), ")"]);
+        EDiv(left, right) : concatStrings(["(", expr2s(left), "/", expr2s(right), ")"]);
+        EPow(base, expnt) : concatStrings(["(", expr2s(base), "^", expr2s(expnt), ")"]);
     }
 }
 
+calc(expr : Expr, variables : Tree<string, Const>) -> Const {
+    switch (expr) {
+        Const() : expr;
+        Variable(name) : lookupTreeDef(variables, name, NaN());
+        EMul(left, right) : calcFunc2args(left, right, cMul, variables);
+        EAdd(left, right) : calcFunc2args(left, right, cAdd, variables);
+        ESub(left, right) : calcFunc2args(left, right, cSub, variables);
+        EDiv(left, right) : calcFunc2args(left, right, cDiv, variables);
+        EPow(left, right) : calcFunc2args(left, right, cPow, variables);
+    }
+}
+
+calcFunc2args(left : Expr, right : Expr, func : (Const, Const) -> Const, variables : Tree<string, Const>) -> Const {
+    leftCalculated = calc(left, variables);
+    rightCalculated = calc(right, variables);
+    func(leftCalculated, rightCalculated);
+}
+
+testExpr(expr : Expr, variables : Tree<string, Const>) -> void {
+    println("====================Test====================");
+    // println(expr);
+    println(expr2s(expr));
+    println(c2s(calc(expr, variables)));
+}
+
 main() {
-    variables = setTree(makeTree(), "mY_v4r14bl3", rat(3, 1));
+    variables = [Pair("x", Rat(3, 1)), Pair("y", Rat(2, 1))];
+    varTree = setTreeValues(makeTree(), variables);
 
-    tree = s2expr("( (mY_v4r14bl3 \n / 2)  \t ^ 4 \t\t\t\n\t )");
-    println(tree);
-
-    strTree = expr2s(tree);
-    println(strTree);
-
-    result = calc(tree, variables);
-    println(result);
+    expr1 = s2expr("(((x / 6) ^ 3) + (7 / 6))");
+    expr2 = s2expr("(((x + y) ^ 2) / (5 / 3))");
+    expr3 = s2expr("((x ^ 4) + (((10 - 5) * y) / 3))");
+    expr4 = s2expr("((x ^ y) ^ (x + y))");
+    
+    testExpr(expr1, varTree);
+    testExpr(expr2, varTree);
+    testExpr(expr3, varTree);
+    testExpr(expr4, varTree);
 }

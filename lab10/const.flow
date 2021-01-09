@@ -1,0 +1,117 @@
+import string;
+import math/math;
+
+export {
+    Const ::= Rat, NaN;
+    Rat : (numer : int, denom : int);
+    NaN : ();
+    cMul(Const, Const) -> Const;
+    cAdd(Const, Const) -> Const;
+    cSub(Const, Const) -> Const;
+    cPow(Const, Const) -> Const;
+    cDiv(Const, Const) -> Const;
+    c2s(Const) -> string;
+}
+
+abs_gcd(a : int, b : int) -> int {
+    iabs(gcd(a, b));
+}
+
+// one of args is NaN => res is NaN
+funcHelper(left : Const, right : Const, ratFunc : (Rat, Rat) -> Const) -> Const{
+    switch (left) {
+        Rat(lnum, lden) : {
+            switch (right) {
+                Rat(rnum, rden) : {
+                    ratFunc(left, right);
+                }
+                NaN() : NaN();
+            }
+        }
+        NaN() : NaN();
+    }
+}
+
+cMul(left : Const, right : Const) -> Const {
+    funcHelper(left, right, rMul);
+}
+
+cAdd(left : Const, right : Const) -> Const {
+    funcHelper(left, right, rAdd);
+}
+
+cSub(left : Const, right : Const) -> Const {
+    funcHelper(left, right, rSub);
+}
+
+cPow(left : Const, right : Const) -> Const {
+    funcHelper(left, right, rPow);
+}
+
+cDiv(left : Const, right : Const) -> Const {
+    funcHelper(left, right, rDiv);
+}
+
+rMul(left : Rat, right : Rat) -> Const {
+    num = left.numer * right.numer;
+    den = left.denom * right.denom;
+    gcd = abs_gcd(num, den);
+    Rat(num / gcd, den / gcd);
+}
+
+rAdd(left : Rat, right : Rat) -> Const {
+    num = left.numer * right.denom + right.numer * left.denom;
+    den = left.denom * right.denom;
+    gcd = abs_gcd(num, den);
+    Rat(num / gcd, den / gcd);
+}
+
+rSub(left : Rat, right : Rat) -> Const {
+    num = left.numer * right.denom - right.numer * left.denom;
+    den = left.denom * right.denom;
+    gcd = abs_gcd(num, den);
+    Rat(num / gcd, den / gcd);
+}
+
+rPow(base : Rat, expnt : Rat) -> Const {
+    if (expnt.denom != 1) {
+        NaN();
+    } else if (base.numer == 0 && expnt.numer == 0) {
+        NaN();
+    } else if (base.numer == 0) {
+        Rat(0, 1);
+    } else if (expnt.numer == 0) {
+        Rat(1, 1);
+    } else if (expnt.numer < 0) {
+        rPow(Rat(base.denom, base.numer), Rat(-expnt.numer, expnt.denom));
+    } else {
+        cMul(rPow(base, Rat(expnt.numer - 1, expnt.denom)), base);
+    }
+}
+
+rDiv(left : Rat, right : Rat) -> Const {
+    if (right.numer == 0) {
+        NaN();
+    } else {
+        rMul(left, Rat(right.denom, right.numer));
+    }
+}
+
+c2s(const : Const) -> string {
+    switch (const) {
+        Rat(num, den): r2s(const);
+        NaN() : "NaN";
+    }
+}
+
+r2s(rat : Rat) -> string {
+    if (rat.denom == 1) {
+        if (rat.numer > 0) {
+            i2s(rat.numer);
+        } else {
+            concatStrings(["(", i2s(rat.numer), ")"]);
+        }
+    } else {
+        concatStrings(["(", i2s(rat.numer), "/", i2s(rat.denom), ")"]);
+    }
+}

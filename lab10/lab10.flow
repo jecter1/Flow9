@@ -1,0 +1,161 @@
+import string;
+import lingo/pegcode/driver;
+import const;
+
+Expr ::= Const, Variable, EMul, EAdd, ESub, EDiv, EPow;
+Variable : (name : string);
+EMul : (left : Expr, right : Expr);
+EAdd : (left : Expr, right : Expr);
+ESub : (left : Expr, right : Expr);
+EDiv : (left : Expr, right : Expr);
+EPow : (base : Expr, expnt : Expr);
+
+parser = compilePegGrammar("#include lab10.lingo");
+
+s2expr(str : string) -> Expr {
+    parsic(parser, str, defaultPegActions);
+}
+
+expr2s(expr : Expr) -> string {
+    switch (expr) {
+        Const() : c2s(expr);
+        Variable(name) : name;
+        EMul(left, right) : concatStrings(["(", expr2s(left), "*", expr2s(right), ")"]);
+        EAdd(left, right) : concatStrings(["(", expr2s(left), "+", expr2s(right), ")"]);
+        ESub(left, right) : concatStrings(["(", expr2s(left), "-", expr2s(right), ")"]);
+        EDiv(left, right) : concatStrings(["(", expr2s(left), "/", expr2s(right), ")"]);
+        EPow(base, expnt) : concatStrings(["(", expr2s(base), "^", expr2s(expnt), ")"]);
+    }
+}
+
+calc(expr : Expr, variables : Tree<string, Const>) -> Const {
+    switch (expr) {
+        Const() : expr;
+        Variable(name) : lookupTreeDef(variables, name, NaN());
+        EMul(left, right) : calcFunc2args(left, right, cMul, variables);
+        EAdd(left, right) : calcFunc2args(left, right, cAdd, variables);
+        ESub(left, right) : calcFunc2args(left, right, cSub, variables);
+        EDiv(left, right) : calcFunc2args(left, right, cDiv, variables);
+        EPow(left, right) : calcFunc2args(left, right, cPow, variables);
+    }
+}
+
+calcFunc2args(left : Expr, right : Expr, func : (Const, Const) -> Const, variables : Tree<string, Const>) -> Const {
+    leftCalculated = calc(left, variables);
+    rightCalculated = calc(right, variables);
+    func(leftCalculated, rightCalculated);
+}
+
+simplify(expr : Expr) -> Expr {
+    expr_new = simplifyOnce(expr);
+
+    if (expr_new == expr) {
+        expr;
+    } else {
+        simplify(expr_new);
+    }
+}
+
+simplifyOnce(expr : Expr) -> Expr {
+    switch (expr) {
+        EMul(left, right) : simplifyHelper(left, right, cMul, simplifyMul);
+        EAdd(left, right) : simplifyHelper(left, right, cAdd, simplifyAdd);
+        ESub(left, right) : simplifyHelper(left, right, cSub, simplifySub);
+        EDiv(left, right) : simplifyHelper(left, right, cDiv, simplifyDiv);
+        EPow(left, right) : simplifyHelper(left, right, cPow, simplifyPow);
+        default : expr;
+    }
+}
+
+// if both arguments are const => perform(?) operation
+simplifyHelper(left : Expr, right : Expr, operation : (Const, Const) -> Const, simplification : (Expr, Expr) -> Expr) -> Expr {
+    switch (left) {
+        Const() : {
+            switch (right) {
+                Const(): operation(left, right);
+                default : simplification(left, right);
+            }
+        }
+        default : simplification(left, right);
+    }
+}
+
+simplifyMul(left : Expr, right : Expr) -> Expr {
+    if (left == NaN() || right == NaN()) {
+        NaN();
+    } else if (left == Rat(0, 1) || right == Rat(0, 1)) {
+        Rat(0, 1);
+    } else if (left == Rat(1, 1)) {
+        right;
+    } else if (right == Rat(1, 1)) {
+        left;
+    } else {
+        EMul(simplify(left), simplify(right));
+    }
+}
+
+simplifyAdd(left : Expr, right : Expr) -> Expr {
+    if (left == NaN() || right == NaN()) {
+        NaN();
+    } else if (left == Rat(0, 1)) {
+        right;
+    } else if (right == Rat(1, 0)) {
+        left;
+    } else {
+        EAdd(simplify(left), simplify(right));
+    }
+}
+
+simplifySub(left : Expr, right : Expr) -> Expr {
+    if (left == NaN() || right == NaN()) {
+        NaN();
+    } else if (right == Rat(0, 1)) {
+        left;
+    } else {
+        ESub(simplify(left), simplify(right));
+    }
+}
+
+simplifyDiv(left : Expr, right : Expr) -> Expr {
+    if (left == NaN() || right == NaN()) {
+        NaN();
+    } else if (right == Rat(0, 1)) {
+        NaN();
+    } else if (right == Rat(1, 1)) {
+        left;
+    } else {
+        EDiv(simplify(left), simplify(right));
+    }
+}
+
+simplifyPow(base : Expr, expnt : Expr) -> Expr {
+    if (base == NaN() || expnt == NaN()) {
+        NaN();
+    } else if (expnt == Rat(1, 1)) {
+        base;
+    } else {
+        EPow(simplify(base), simplify(expnt));
+    }
+}
+
+testExpr(expr : Expr, variables : Tree<string, Const>) -> void {
+    println("====================Test====================");
+    // println(expr);
+    println(expr2s(expr));
+    println(c2s(calc(expr, variables)));
+}
+
+main() {
+    variables = [Pair("x", Rat(3, 1)), Pair("y", Rat(2, 1))];
+    varTree = setTreeValues(makeTree(), variables);
+
+    expr1 = simplify(s2expr("(((2 + (x * 0)) - (3 ^ 0)) / 2)"));
+    expr2 = simplify(s2expr("(((2 + (x * 0)) - (3 ^ 0)) / 0)"));
+    expr3 = simplify(s2expr("((x ^ 1) + (((10 - 5) * y) / 1))"));
+    expr4 = simplify(s2expr("((z ^ 1) + (((10 - 5) * y) / 1))"));
+
+    testExpr(expr1, varTree);
+    testExpr(expr2, varTree);
+    testExpr(expr3, varTree);
+    testExpr(expr4, varTree);
+}
