@@ -1,0 +1,263 @@
+import parser;
+import ds/arrayutils;
+
+Arr : (array : [Value]);
+Value ::= EInt, Arr;
+State : (label : int, vars : Tree<string, Value>);
+
+main() {
+    progStr = ("
+        VAR p3R3_m3naYa \n: int
+        VAR     arr  : [int]
+        VAR i  : int
+        VAR cur : int
+        0: p3R3_m3naYa :=   
+         7 goto {305}
+        305: \t if (p3R3_m3naYa > 0) then {127, 
+        1000000, \t 100000000} else {1000}
+        127: cur := 1 goto {1}
+        1: if (i < p3R3_m3naYa) then {2} else {5}
+        2: arr := upd(arr,    i, cur) goto {3}
+        3: i := ( i + 1) goto {4 }
+        4: cur := (cur *  (i + 1)) goto {1}
+        5: print arr goto {}
+    ");
+
+    println("===============>[Program as struct]<===============");
+    prog = str2prog(progStr);
+    println(prog);
+    println("");
+
+    println("===============>[Program as string]<===============");
+    strProg = prog2str(prog);
+    println(strProg);
+
+    println("================>[Program output]<=================");
+    execute(prog);
+}
+
+execute(prog : Program) -> [State] {
+    initVars = executeDeclarations(prog.declarations);
+    initStates = [State(0, initVars)];
+    executeInstructions(initStates, prog.instructions);
+}
+
+executeDeclarations(declarations : [Declaration]) -> Tree<string, Value> {
+    emptyTree = makeTree();
+    nameValPairs = declarations2pairs(declarations);
+    setTreeValues(emptyTree, nameValPairs);
+}
+
+declarations2pairs(declarations : [Declaration]) -> [Pair<string, Value>] {
+    map(declarations, declaration2pair);
+}
+
+declaration2pair(declaration : Declaration) -> Pair<string, Value> {
+    value = initValue(declaration.type);
+    Pair(declaration.name, value);
+}
+
+initValue(type : Type) -> Value {
+    switch (type) {
+        TInt() : EInt(0);
+        TArr(elementType) : Arr([initValue(elementType)]);
+    }
+}
+
+executeInstructions(states : [State], instructions : [Instruction]) -> [State] {
+    changeStateOnce = \state -> {
+        instrIndex = findi(instructions, \instr -> state.label == instr.label);
+        switch (instrIndex) {
+            Some(intVal) :  executeInstruction(state, instructions[intVal]);
+            None() : [];
+        }
+    }
+    statesNew = mapConcat(states, changeStateOnce);
+    if (length(statesNew) != 0) {
+        executeInstructions(statesNew, instructions);
+    } else {
+        [];
+    }
+}
+
+executeInstruction(state : State, instruction : Instruction) -> [State] {
+    switch (instruction.statement) {
+        Print(expr, labels) : executePrint(state, instruction.statement);
+        Assign(name, expr, labels) : executeAssign(state, instruction.statement);
+        Condition(relation, trueLabels, falseLabels) : executeCondition(state, instruction.statement);
+    }
+}
+
+executePrint(state : State, print : Print) -> [State] {
+    val = expr2val(print.expr, state.vars);
+    println(val2str(val));
+    stateNext = \label -> State(label, state.vars);
+    map(print.labels, stateNext);
+}
+
+expr2val(expr : Expr, vars : Tree<string, Value>) -> Value {
+    switch (expr) {
+        EInt(value) : expr;
+        EVar(name) : var2val(expr, vars);
+        EApp(array, index) : app2val(expr, vars);
+        EUpd(array, index, value) : upd2val(expr, vars);
+        EBOp(operator, left, right) : bop2val(expr, vars);
+    }
+}
+
+var2val(var : EVar, vars : Tree<string, Value>) -> Value {
+    findVarValOrExit(var.name, vars);
+}
+
+findVarValOrExit(name : string, vars : Tree<string, Value>) -> Value {
+    switch (lookupTree(vars, name)) {
+        Some(val) : val;
+        None() : fail0("'" + name + "' wasn't declared");
+    }
+}
+
+app2val(app : EApp, vars : Tree<string, Value>) -> Value {
+    arrayApp = expr2val(app.array, vars);
+    indexApp = expr2val(app.index, vars);
+
+    arrayApp_Arr = extractArrOrExit(arrayApp, "first argument of app() must be an array");
+    indexApp_EInt = extractIntOrExit(indexApp, "second argument of app() is index - must be an integer");
+    
+    arrayApp_Arr.array[indexApp_EInt.value];
+}
+
+extractIntOrExit(value : Value, message : string) -> EInt {
+    switch (value) {
+        EInt(v) : value;
+        Arr(a) : fail0(message);
+    }
+}
+
+extractArrOrExit(value : Value, message : string) -> Arr {
+    switch (value) {
+        EInt(v) : fail0(message);
+        Arr(a) : value;
+    }
+}
+
+upd2val(upd : EUpd, vars : Tree<string, Value>) -> Value {
+    arrayUpd = expr2val(upd.array, vars);
+    indexUpd = expr2val(upd.index, vars);
+    valueUpd = expr2val(upd.value, vars);
+
+    arrayUpd_Arr = extractArrOrExit(arrayUpd, "first argument of upd() must be an array");
+    indexUpd_EInt = extractIntOrExit(indexUpd, "second argument of upd() is index - must be an integer");
+    
+    if (hasSameTypes(valueUpd, arrayUpd_Arr.array[0])) {
+        Arr(replaceAtAndPad(padElement(arrayUpd_Arr.array), arrayUpd_Arr.array, indexUpd_EInt.value, valueUpd));
+    } else {
+        fail0("upd() - elements of an array and value (third argument) have different types");
+    }
+}
+
+hasSameTypes(val1 : Value, val2 : Value) -> bool {
+    if (val1.structname == val2.structname) {
+        switch (val1) {
+            EInt(value1) : true;
+            Arr(array1) : {
+                switch (val2) {
+                    EInt(value2) : false;
+                    Arr(array2) : hasSameTypes(array1[0], array2[0]);
+                }
+            }
+        }
+    } else {
+        false;
+    }
+}
+
+padElement(array : [Value]) -> Value {
+    switch (array[0]) {
+        EInt(value) : EInt(0);
+        Arr(arrayNext) : Arr([padElement(arrayNext)]);
+    }
+}
+
+bop2val(bop : EBOp, vars : Tree<string, Value>) -> Value {
+    lval = expr2val(bop.left, vars);
+    lval_EInt = extractIntOrExit(lval, "value of left operand in binary operation isn't integer");
+
+    rval = expr2val(bop.right, vars);
+    rval_EInt = extractIntOrExit(rval, "value of right operand in binary operation isn't integer");
+
+    operation = binOperator2lambda(bop.operator);
+    operation(lval_EInt, rval_EInt);
+}
+
+binOperator2lambda(operator : string) -> ((EInt, EInt) -> EInt) {
+    if (operator == "+") {
+        \a, b -> EInt(a.value + b.value);
+    } else if (operator == "-") {
+        \a, b -> EInt(a.value - b.value);
+    } else if (operator == "*") {
+        \a, b -> EInt(a.value * b.value);
+    } else if (operator == "/") {
+        \a, b -> EInt(a.value / b.value);
+    } else if (operator == "%"){
+        \a, b -> EInt(a.value % b.value);
+    } else {
+        \a, b -> EInt(0);
+    }
+}
+
+val2str(value : Value) -> string {
+    switch (value) {
+        EInt(val) : i2s(val);
+        Arr(array) : concatStrings(["[", arr2str(array, val2str), "]"]);
+    }
+}
+
+executeAssign(state : State, assign : Assign) -> [State] {
+    valueNew = expr2val(assign.expr, state.vars);
+    varValue = findVarValOrExit(assign.name, state.vars);
+
+    if (hasSameTypes(valueNew, varValue)) {
+        varsNew = setTree(state.vars, assign.name, valueNew);
+        stateNext = \label -> State(label, varsNew);
+        map(assign.labels, stateNext);
+    } else {
+        fail0("invalid assignment - different types");
+    }
+}
+
+executeCondition(state : State, condition : Condition) -> [State] {
+    res = relation2bool(condition.relation, state.vars);
+    stateNext = \label -> State(label, state.vars);
+    if (res) {
+        map(condition.trueLabels, stateNext);
+    } else {
+        map(condition.falseLabels, stateNext);
+    }
+}
+
+relation2bool(relation : Relation, vars : Tree<string, Value>) -> bool {
+    lval = expr2val(relation.left, vars);
+    lval_EInt = extractIntOrExit(lval, "value of left operand in relation isn't integer");
+
+    rval = expr2val(relation.right, vars);
+    rval_EInt = extractIntOrExit(rval, "value of right operand in relation isn't integer");
+
+    operation = relationSymbol2lambda(relation.symbol);
+    operation(lval_EInt, rval_EInt);
+}
+
+relationSymbol2lambda(symbol : string) -> ((EInt, EInt) -> bool) {
+    if (symbol == "=") {
+        \a, b -> a.value == b.value;
+    } else if (symbol == "<") {
+        \a, b -> a.value < b.value;
+    } else if (symbol == ">") {
+        \a, b -> a.value > b.value;
+    } else if (symbol == "<=") {
+        \a, b -> a.value <= b.value;
+    } else if (symbol == ">=") {
+        \a, b -> a.value >= b.value;
+    } else {
+        \a, b -> false;
+    }
+}

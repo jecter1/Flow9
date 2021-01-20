@@ -99,7 +99,7 @@ simplifyAdd(left : Expr, right : Expr) -> Expr {
         NaN();
     } else if (left == Rat(0, 1)) {
         right;
-    } else if (right == Rat(1, 0)) {
+    } else if (right == Rat(0, 1)) {
         left;
     } else {
         EAdd(simplify(left), simplify(right));

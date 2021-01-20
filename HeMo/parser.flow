@@ -1,0 +1,134 @@
+import string;
+import lingo/pegcode/driver;
+
+export {
+    Program : (declarations : [Declaration], instructions : [Instruction]);
+
+    Declaration : (name : string, type : Type);
+
+    Type ::= TInt, TArr;
+    TInt : ();
+    TArr : (elementType : Type);
+
+    Instruction : (label : int, statement : Statement);
+
+    Statement ::= Assign, Condition, Print;
+    Assign : (name : string, expr : Expr, labels : [int]);
+    Condition : (relation : Relation, trueLabels : [int], falseLabels : [int]);
+    Print : (expr : Expr, labels : [int]);
+
+    Expr ::= EInt, EVar, EBOp, EApp, EUpd;
+    EInt : (value : int);
+    EVar : (name : string);
+    EApp : (array : Expr, index : Expr);
+    EUpd : (array : Expr, index : Expr, value : Expr);
+    EBOp : (operator : string, left : Expr, right : Expr);
+
+    Relation : (symbol : string, left : Expr, right : Expr);
+
+
+    str2prog(s : string) -> Program;
+    prog2str(prog : Program) -> string;
+
+    arr2str(arr : [?], element2str : (?) -> string) -> string;
+}
+
+parser = compilePegGrammar("#include grammar.lingo");
+
+str2prog(str : string) -> Program {
+    parsic(parser, str, defaultPegActions);
+}
+
+prog2str(prog : Program) -> string {
+    declsStr = decls2str(prog.declarations);
+    instrsStr = instrs2str(prog.instructions);
+    concatStrings([declsStr, instrsStr]);
+}
+
+decls2str(decls : [Declaration]) -> string {
+    declsStrs = map(decls, decl2str);
+    concatStrings(declsStrs);
+}
+
+decl2str(decl : Declaration) -> string {
+    nameStr = decl.name;
+    typeStr = type2str(decl.type);
+    concatStrings(["VAR ", nameStr, " : ", typeStr, "\n"]);
+}
+
+type2str(type : Type) -> string {
+    switch (type) {
+        TInt() : "int";
+        TArr(elementType) : concatStrings(["[", type2str(elementType), "]"]);
+    }
+}
+
+instrs2str(instrs : [Instruction]) -> string {
+    instrsStrs = map(instrs, instr2str);
+    concatStrings(instrsStrs);
+}
+
+instr2str(instr : Instruction) -> string {
+    labelStr = i2s(instr.label);
+    statementStr = statement2str(instr.statement);
+    concatStrings([labelStr, ": ", statementStr, "\n"]);
+}
+
+statement2str(statement : Statement) -> string {
+    switch (statement) {
+        Assign(name, expr, labels) : assign2str(statement);
+        Condition(condition, trueLabels, falseLabels) : condition2str(statement);
+        Print(expr, labels) : print2str(statement);
+    }
+}
+
+assign2str(assign : Assign) -> string {
+    exprStr = expr2str(assign.expr);
+    labelsStr = labels2str(assign.labels);
+    concatStrings([assign.name, " := ", exprStr, " goto {", labelsStr, "}"]);
+}
+
+expr2str(expr : Expr) -> string {
+    switch (expr) {
+        EInt(value) : i2s(value);
+        EVar(name) : name;
+        EApp(array, index) : concatStrings(["app(", expr2str(array), ", ", expr2str(index), ")"]);
+        EUpd(array, index, value) : concatStrings(["upd(", expr2str(array), ", ", expr2str(index), ", ", expr2str(value), ")"]);
+        EBOp(operator, left, right) : concatStrings(["(", expr2str(left), " ", operator, " ", expr2str(right), ")"]);
+    }
+}
+
+labels2str(labels : [int]) -> string {
+    arr2str(labels, i2s);
+}
+
+arr2str(arr : [?], element2str : (?) -> string) -> string {
+    elem2str = \index, element -> {
+        if (index != (length(arr) - 1)) {
+            concatStrings([element2str(element), ", "]);
+        } else {
+            element2str(element);
+        }
+    }
+    elemStrs = mapi(arr, elem2str);
+    concatStrings(elemStrs);
+}
+
+condition2str(condition : Condition) -> string {
+    relationStr = relation2str(condition.relation);
+    trueLabelsStr = labels2str(condition.trueLabels);
+    falseLabelsStr = labels2str(condition.falseLabels);
+    concatStrings(["if ", relationStr, " then {", trueLabelsStr, "} else {", falseLabelsStr, "}"]);
+}
+
+relation2str(relation : Relation) -> string {
+    leftStr = expr2str(relation.left);
+    rightStr = expr2str(relation.right);
+    concatStrings(["(", leftStr, " ", relation.symbol, " ", rightStr, ")"]);
+}
+
+print2str(print : Print) -> string {
+    exprStr = expr2str(print.expr);
+    labelsStr = labels2str(print.labels);
+    concatStrings(["print ", exprStr, " goto {", labelsStr, "}"]);
+}

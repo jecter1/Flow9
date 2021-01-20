@@ -1,0 +1,43 @@
+prog = declarations:d instructions:i ws {Program(:d, :i)};
+
+
+declarations = (ws declaration:d ws {:d})*;
+declaration = "VAR" ws varName:n ws ":" type:t {Declaration(:n, :t)};
+
+type = ws (tInt | tArr):t ws {:t};
+
+tInt = "int" {TInt()};
+tArr = "[" type:t "]" {TArr(:t)};
+
+
+instructions = (ws instruction:i ws {:i})*;
+instruction = number:l ws ":" ws statement:s {Instruction(:l, :s)};
+
+statement = ws (assign | condition | print):s ws {:s};
+assign = varName:n ws ":=" exp:e "goto" ws "{" ws labels:l ws "}" {Assign(:n, :e, :l)};
+condition = "if" relation:r "then" ws "{" ws labels:tl ws "}" ws "else" ws "{" ws labels:fl ws "}" {Condition(:r, :tl, :fl)};
+print = "print" exp:e "goto" ws "{" ws labels:l ws "}" {Print(:e, :l)};
+
+labels = labelsExcLast:a number?:b {concat(:a, :b)};
+labelsExcLast = (number:n ws ',' ws {:n})*;
+
+exp = ws (cInt | bOp | app | upd | var):e ws {:e};
+
+cInt = number:n {EInt(:n)};
+bOp = "(" exp:a binaryOperator:bo exp:b ")" {EBOp(:bo, :a, :b)};
+app = "app(" exp:array "," exp:index ")" {EApp(:array, :index)};
+upd = "upd(" exp:array "," exp:index "," exp:value ")" {EUpd(:array, :index, :value)};
+var = varName:N {EVar(:N)};
+
+binaryOperator = ("+" | "*" | "/" | "-" | "%")$str {$str};
+
+relation = ws "(" exp:a relationSymbol:rs exp:b ")" ws {Relation(:rs, :a, :b)};
+relationSymbol = ("=" | "<" | ">" | "<=" | ">=")$str {$str};
+
+
+number = ('0'-'9')+$str {s2i($str)};
+letter = ('a' - 'z') | ('A' - 'Z');
+permCh = letter | '_' | ('0' - '9');
+varName = (letter permCh*)$str {$str};
+
+ws = (' ' | '\t' | '\n' | '\r')*;
